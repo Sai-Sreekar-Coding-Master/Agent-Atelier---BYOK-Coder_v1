@@ -211,6 +211,24 @@
   .mv-view{flex:1;display:grid;place-items:center;margin:14px 14px 0;background:#181712;border-radius:var(--r-lg);overflow:hidden;min-height:120px}
   .mv-view model-viewer{width:100%;height:100%;min-height:300px;--poster-color:#181712}
   .fn-tf-content{font:11px/1.4 'JetBrains Mono';color:var(--ink-3);background:var(--surface);border-radius:6px;padding:4px 8px;margin:4px 0;max-height:40px;overflow:hidden;white-space:pre-wrap;word-break:break-word}
+  .find-bar{display:none;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .find-bar.open{display:flex}
+  .find-bar input{flex:1;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font:13px 'JetBrains Mono';background:#fff;color:var(--ink);outline:none;max-width:200px}
+  .find-bar input:focus{border-color:var(--accent)}
+  .find-bar .fb-btn{background:none;border:0;color:var(--ink-2);cursor:pointer;padding:4px 6px;border-radius:6px;font:600 12px 'Instrument Sans';display:grid;place-items:center;transition:background .12s,color .12s}
+  .find-bar .fb-btn:hover{background:#e7e2d4;color:var(--ink)}
+  .find-bar .fb-count{font:600 11px 'JetBrains Mono';color:var(--ink-3);min-width:50px}
+  .skill-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:11px 12px;cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s,border-color .18s;margin-bottom:8px}
+  .skill-item:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--line-2)}
+  .skill-item.active-skill{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+  .skill-ico{width:38px;height:38px;border-radius:11px;background:var(--purple-soft);color:var(--purple);display:grid;place-items:center;flex-shrink:0}
+  .skill-main{flex:1;min-width:0}
+  .skill-name{font:600 14px 'Instrument Sans';color:var(--ink);display:flex;align-items:center;gap:8px}
+  .skill-desc{font-size:12.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .skill-file-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .skill-file-name{flex:1;font:600 13px 'JetBrains Mono';color:var(--ink-2)}
+  .skill-file-ico{opacity:.5}
+  .tk-ki{color:#ff8787;text-transform:uppercase;font-size:12px}
 
   .av-view video{max-width:100%;max-height:70%;border-radius:12px}
   .av-view audio{width:90%}
@@ -408,6 +426,7 @@
       <span class="status" id="modePill" title="Which AI is answering in this chat"><i></i><span>Scripted demo</span></span>
       <span class="status" id="statusPill"><i></i><span>Ready</span></span>
       <label class="flow-sel" id="flowSel" title="Chat with a custom flow or single model"><span class="fs-ico" id="flowSelIco"></span><select id="flowSelSelect"><option value="">Direct chat</option></select></label>
+      <label class="flow-sel" id="skillSel" title="Active skill — injects instructions into the system prompt"><span class="fs-ico" id="skillSelIco"></span><select id="skillSelSelect"><option value="">No skill</option></select></label>
       <button class="panel-toggle" id="panelToggle"><span id="panelIco"></span><span class="lbl">Artifacts</span><span class="count-badge" id="artCount">0</span></button>
       <button class="icon-btn" id="settingsBtn" title="Settings & workflows"></button>
     </header>
@@ -466,6 +485,16 @@
             <span class="ed-hint" id="edHint">Ctrl / ⌘ + Enter</span>
           </div>
         </div>
+        <div class="find-bar" id="findBar">
+          <input type="text" id="findInput" placeholder="Find" spellcheck="false">
+          <button class="fb-btn" id="findPrev" title="Previous (Shift+F3)">&#8593;</button>
+          <button class="fb-btn" id="findNext" title="Next (F3)">&#8595;</button>
+          <span class="fb-count" id="findCount"></span>
+          <input type="text" id="replaceInput" placeholder="Replace" spellcheck="false">
+          <button class="fb-btn" id="replaceBtn" title="Replace">Replace</button>
+          <button class="fb-btn" id="replaceAllBtn" title="Replace all">All</button>
+          <button class="fb-btn" id="findClose" title="Close (Esc)">&#215;</button>
+        </div>
         <div class="ed-code" id="edCode">
           <div class="gutter"><div class="gutter-in" id="gutter"></div></div>
           <div class="ed-stack">
@@ -504,6 +533,7 @@
     </div>
     <div class="mo-tabs" id="moTabs">
       <button data-t="workflows" class="active">Workflows</button>
+      <button data-t="skills">Skills</button>
       <button data-t="api">Agents & API</button>
     </div>
     <div class="mo-body" id="moBody"></div>
@@ -543,6 +573,30 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="skillEditor">
+  <div class="modal" style="max-width:680px">
+    <div class="mo-head">
+      <span class="mo-title">Edit Skill</span>
+      <span class="flex-space"></span>
+      <button class="icon-btn" id="skillEdClose" title="Save & close"></button>
+    </div>
+    <div class="mo-body" style="padding:16px">
+      <div class="field"><label>Skill name</label><input id="skillEdName" placeholder="e.g. Code Reviewer"></div>
+      <div class="field"><label>Description</label><input id="skillEdDesc" placeholder="What does this skill help with?"></div>
+      <div class="field"><label>Linked flow (optional — auto-selects when skill is active)</label>
+        <select id="skillEdFlow"></select></div>
+      <div class="field"><label>Instructions (markdown — injected into system prompt when skill is active)</label>
+        <textarea id="skillEdInstructions" style="min-height:220px;font:13px/1.6 'JetBrains Mono';white-space:pre-wrap" placeholder="# Steps
+
+1. First, analyze the input...
+2. Then, check for...
+3. Finally, output..."></textarea></div>
+      <div class="field"><label>Reference files</label>
+        <div id="skillEdFiles"></div>
+        <button class="ghost-btn" id="skillAddFile" style="margin-top:8px">+ Attach file from artifacts</button></div>
+    </div>
+  </div>
+</div>
 <div id="toasts"></div>
 
 <script>
@@ -603,22 +657,33 @@ const LANGMETA={
   image:{label:'Image',runnable:false,icon:'img'},
   audio:{label:'Audio',runnable:false,icon:'music'},
   video:{label:'Video',runnable:false,icon:'film'},
-  model3d:{label:'3D Model',runnable:false,icon:'box'}};
+  model3d:{label:'3D Model',runnable:false,icon:'box'},
+  python:{label:'Python',runnable:false,icon:'code'},
+  py:{label:'Python',runnable:false,icon:'code'},
+  sh:{label:'Shell',runnable:false,icon:'code'},
+  yaml:{label:'YAML',runnable:false,icon:'code'},
+  xml:{label:'XML',runnable:false,icon:'code'},
+  sql:{label:'SQL',runnable:false,icon:'code'}};
 const extLang=n=>{const e=(n.split('.').pop()||'').toLowerCase();
   return {js:'js',mjs:'js',html:'html',htm:'html',css:'css',json:'json',md:'md',markdown:'md',txt:'txt',
     png:'image',jpg:'image',jpeg:'image',gif:'image',webp:'image',svg:'image',avif:'image',
     mp3:'audio',wav:'audio',ogg:'audio',m4a:'audio',aac:'audio',flac:'audio',opus:'audio',
     mp4:'video',webm:'video',mov:'video',mkv:'video',
     glb:'model3d',gltf:'model3d',obj:'model3d',stl:'model3d',ply:'model3d',
+    py:'python',pyw:'python',sh:'sh',bash:'sh',yml:'yaml',yaml:'yaml',xml:'xml',sql:'sql',
     pdf:'txt',csv:'txt'}[e]||'txt';};
 
 /* ---------- highlighter ---------- */
 function highlight(src,lang){
   let rules=null;
   if(lang==='js')rules=[[/\/\/[^\n]*|\/\*[\s\S]*?\*\//,'c'],[/'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/,'s'],[/\b\d[\d_]*(?:\.\d+)?\b/,'n'],[/\b(?:const|let|var|function|return|if|else|for|while|do|of|in|new|class|extends|super|import|export|from|default|try|catch|finally|throw|typeof|instanceof|this|null|undefined|true|false|async|await|yield|break|continue|switch|case|delete|void|static)\b/,'k'],[/[A-Za-z_$][\w$]*(?=\s*\()/,'f']];
-  else if(lang==='html')rules=[[/<!--[\s\S]*?-->/,'c'],[/<\/?[a-zA-Z][\w-]*|\/?>/,'t'],[/"[^"]*"|'[^']*'/,'s'],[/[a-zA-Z-]+(?==)/,'a']];
+  else if(lang==='python'||lang==='py')rules=[[/#[^\n]*/,'c'],[/'''[\s\S]*?'''|"""[\s\S]*?"""/,'c'],[/'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"/,'s'],[/\b\d[\d_]*(?:\.\d+)?\b/,'n'],[/\b(?:def|class|return|if|elif|else|for|while|break|continue|pass|import|from|as|try|except|finally|raise|with|yield|lambda|global|nonlocal|assert|del|in|is|not|and|or|None|True|False|self|cls|async|await)\b/,'k'],[/@[A-Za-z_][\w]*/,'a'],[/[A-Za-z_][\w]*(?=\s*\()/,'f']];
+  else if(lang==='html'||lang==='xml')rules=[[/<!--[\s\S]*?-->/,'c'],[/<\/?[a-zA-Z][\w:-]*|\/?>/,'t'],[/"[^"]*"|'[^']*'/,'s'],[/[a-zA-Z-]+(?==)/,'a']];
   else if(lang==='css')rules=[[/\/\*[\s\S]*?\*\//,'c'],[/"[^"]*"|'[^']*'/,'s'],[/#[0-9a-fA-F]{3,8}\b/,'n'],[/\b\d+(?:\.\d+)?(?:px|em|rem|%|s|ms|vh|vw|vmin|fr|deg|ch)?\b/,'n'],[/@[\w-]+/,'k'],[/[\w-]+(?=\s*:)/,'a']];
-  else if(lang==='json')rules=[[/"(?:\\.|[^"\\])*"(?=\s*:)/,'a'],[/"(?:\\.|[^"\\])*"/,'s'],[/\b\d+(?:\.\d+)?\b/,'n'],[/\b(?:true|false|null)\b/,'k']];
+  else if(lang==='json')rules=[[/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"(?=\s*:)/,'a'],[/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/,'s'],[/\b\d+(?:\.\d+)?\b/,'n'],[/\b(?:true|false|null)\b/,'k']];
+  else if(lang==='sh')rules=[[/#[^\n]*/,'c'],[/"[^"]*"|'[^']*'/,'s'],[/\b(?:if|then|fi|else|elif|case|esac|for|in|do|done|while|until|function|return|export|local|echo|printf|read|set|unset|source|alias|cd|pwd|ls|cat|grep|sed|awk|curl|wget|npm|pip|python|node|git)\b/,'k'],[/\$\w+|\$\{[^}]+\}/,'n'],[/\b\d+\b/,'n']];
+  else if(lang==='yaml'||lang==='yml')rules=[[/#[^\n]*/,'c'],[/"[^"]*"|'[^']*'/,'s'],[/\b\d+(?:\.\d+)?\b/,'n'],[/^[\s-]*[\w]+(?=:)/m,'a'],[/\b(?:true|false|null|yes|no)\b/,'k']];
+  else if(lang==='sql')rules=[[/--[^\n]*/,'c'],[/\/\*[\s\S]*?\*\//,'c'],[/'[^']*'/,'s'],[/\b\d+(?:\.\d+)?\b/,'n'],[/\b(?:SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|VIEW|JOIN|INNER|LEFT|RIGHT|OUTER|ON|GROUP|BY|ORDER|HAVING|LIMIT|OFFSET|DISTINCT|AS|AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE|IS|NULL|DEFAULT|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|CONSTRAINT|CHECK|UNION|ALL|CASE|WHEN|THEN|ELSE|END|BEGIN|COMMIT|ROLLBACK|TRANSACTION)\b/,'ki']];
   if(!rules)return esc(src);
   const re=new RegExp(rules.map(r=>'('+r[0].source+')').join('|'),'g');
   let out='',last=0,m;
@@ -779,8 +844,35 @@ function buildSeed(){
 }
 
 /* ---------- state & persistence ---------- */
-const KEY='atelier.workspace.v1', FKEY='atelier.flows.v1', AKEY='atelier.chatapi.v1', CFKEY='atelier.chatflow.v1';
-const state={chats:[],artifacts:{},activeChatId:null,activeArtifactId:null,filter:'all',activeFlowId:null};
+const KEY='atelier.workspace.v1', FKEY='atelier.flows.v1', AKEY='atelier.chatapi.v1', CFKEY='atelier.chatflow.v1', SKEY='atelier.skills.v1';
+const state={chats:[],artifacts:{},activeChatId:null,activeArtifactId:null,filter:'all',activeFlowId:null,skills:{},activeSkillId:null};
+let skills={};
+function loadSkills(){try{const d=JSON.parse(localStorage.getItem(SKEY));if(d&&Object.keys(d).length){skills=d;}}catch(e){}if(!Object.keys(skills).length){skills=seedSkills();saveSkills();}}
+function saveSkills(){try{localStorage.setItem(SKEY,JSON.stringify(skills));}catch(e){}}
+function seedSkills(){
+  const now=Date.now();
+  return {
+    's-code-review':{id:'s-code-review',name:'Code Reviewer',description:'Reviews code for bugs, style, and best practices',
+      instructions:'You are a senior code reviewer. When the user shares code:\n1. Identify bugs and potential issues\n2. Suggest improvements for readability and maintainability\n3. Check for edge cases and error handling\n4. Rate the code quality 1-10\n5. Provide a corrected version if needed\n\nBe specific — reference line numbers and explain why each suggestion matters.',
+      flowId:'',files:[],createdAt:now,updatedAt:now},
+    's-debug':{id:'s-debug',name:'Debug Assistant',description:'Helps debug errors step by step',
+      instructions:'You are a debugging expert. When the user reports an error:\n1. Identify the likely root cause\n2. List possible fixes ranked by likelihood\n3. Provide the corrected code\n4. Explain how to prevent this error in future\n\nAlways show the exact line that needs changing.',
+      flowId:'',files:[],createdAt:now,updatedAt:now}
+  };
+}
+function activeSkill(){return state.activeSkillId?skills[state.activeSkillId]:null;}
+function skillSystemPrompt(){
+  let p='You are Atelier, a concise, friendly coding assistant. Answer in markdown. Fence code blocks with the language tag.';
+  const s=activeSkill();
+  if(s&&s.instructions){
+    p+='\n\n## Active Skill: '+s.name+'\n\n'+s.instructions;
+    if(s.files&&s.files.length){
+      p+='\n\n## Reference files attached:\n';
+      s.files.forEach(f=>{const a=state.artifacts[f.artifactId];if(a)p+='\n### '+f.name+'\n```'+(a.lang||'txt')+'\n'+a.content+'\n```\n';});
+    }
+  }
+  return p;
+}
 function loadChatFlow(){try{state.activeFlowId=localStorage.getItem(CFKEY)||null;}catch(e){}}
 function saveChatFlow(){try{if(state.activeFlowId)localStorage.setItem(CFKEY,state.activeFlowId);else localStorage.removeItem(CFKEY);}catch(e){}}
 
@@ -812,7 +904,7 @@ const PROVIDERS={
       'thinkingmachines/inkling-small:free','z-ai/glm-5.2:free','cohere/north-mini-code:free',
       'minimax/minimax-m3:free','minimax/minimax-m2.7:free']},
   bai:{label:'B.AI',endpoint:'https://api.b.ai/v1/chat/completions',
-    models:['gpt-5.2','gpt-5-mini','gpt-5-nano','claude-opus-4-8','claude-opus-4-7',
+    models:['glm-5.3-flash','gpt-5.2','gpt-5-mini','gpt-5-nano','claude-opus-4-8','claude-opus-4-7',
       'claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],corsBlock:true},
   nvidia:{label:'NVIDIA NIM',endpoint:'https://integrate.api.nvidia.com/v1/chat/completions',
     models:['deepseek-ai/deepseek-v4-flash','deepseek-ai/deepseek-v4-pro',
@@ -830,7 +922,7 @@ const PROVIDERS={
   ollama:{label:'Ollama (local)',endpoint:'http://localhost:11434/v1/chat/completions',models:['llama3.2']},
   custom:{label:'Custom / other',endpoint:'',models:[]}
 };
-let chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:''};
+let chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:'',webSearch:false};
 function loadChatApi(){try{const d=JSON.parse(localStorage.getItem(AKEY));if(d)chatApi={...chatApi,...d};}catch(e){}}
 function proxiedUrl(url){
   if(!chatApi.corsProxy||!url)return url;
@@ -870,13 +962,15 @@ async function callChatAPI(history,onDelta){
   /* Build payload — matches NVIDIA NIM / OpenAI format exactly. */
   const payload={
     model:chatApi.model||'gpt-4o-mini',
-    messages:[{role:'system',content:'You are Atelier, a concise, friendly coding assistant. Answer in markdown. Fence code blocks with the language tag.'},...history],
+    messages:[{role:'system',content:skillSystemPrompt()},...history],
     max_tokens:16384,
     temperature:0.7,
     stream:useStream
   };
   /* NVIDIA NIM supports reasoning_effort and seed — send them for nvidia provider. */
   if(chatApi.provider==='nvidia'){payload.reasoning_effort='max';payload.seed=0;}
+  /* B.AI: enable web search for GLM models when toggled on */
+  if(chatApi.provider==='bai'&&chatApi.webSearch){payload.web_search_options={};}
   const body=JSON.stringify(payload);
   let res;
   try{
@@ -954,7 +1048,9 @@ async function callAgent(node,input,context){
     if(provider==='openrouter')headers['HTTP-Referer']=location.origin;
     /* Build messages: system prompt + optional conversation context + current input.
        Multi-message context lets agents see the full chat history when run from chat. */
-    const msgs=[{role:'system',content:c.system||'You are a helpful assistant.'}];
+    let sysPrompt=c.system||'You are a helpful assistant.';
+    const sk=activeSkill();if(sk&&sk.instructions)sysPrompt+='\n\n## Skill: '+sk.name+'\n\n'+sk.instructions;
+    const msgs=[{role:'system',content:sysPrompt}];
     if(context&&Array.isArray(context)){
       context.slice(-12).forEach(m=>msgs.push({role:m.role,content:m.content}));
     }
@@ -966,6 +1062,8 @@ async function callAgent(node,input,context){
       stream:false};
     /* NVIDIA NIM: add reasoning_effort + seed. */
     if(provider==='nvidia'){payload.reasoning_effort='max';payload.seed=0;}
+    /* B.AI: enable web search for GLM models when toggled on in chat settings */
+    if(provider==='bai'&&chatApi.webSearch){payload.web_search_options={};}
     let res;
     try{
       res=await fetch(proxiedUrl(ep),{method:'POST',headers,
@@ -1246,6 +1344,29 @@ function renderSettings(){
         </div>
       </div>`).join(''):`<div class="insp-empty"><span class="icon-wrap">${icon('flow',22)}</span><br>No workflows yet.<br>Create one to start wiring agents together.</div>`);
     $('#newFlowBtn').onclick=()=>{const f=blankFlow();flows[f.id]=f;saveFlows();renderSettings();renderFlowSelector();toast('Workflow created');};
+  } else if(moTab==='skills'){
+    const sList=Object.values(skills).sort((a,b)=>b.updatedAt-a.updatedAt);
+    body.innerHTML=`<div class="btn-row" style="margin-bottom:14px">
+      <span style="font-size:13px;color:var(--ink-3)">Skills are instruction files — markdown steps + optional linked flow + reference files. When active, instructions inject into the system prompt.</span>
+      <span class="flex-space"></span>
+      <button class="solid-btn" id="newSkillBtn">${icon('plus',14)}New skill</button></div>`+
+      (sList.length?sList.map(s=>{
+        const linkedFlow=s.flowId?flows[s.flowId]?.name||'':'none';
+        const isActive=state.activeSkillId===s.id;
+        return `<div class="skill-item${isActive?' active-skill':''}" data-skill="${s.id}">
+          <span class="skill-ico">${icon('file',18)}</span>
+          <div class="skill-main">
+            <div class="skill-name">${esc(s.name)}${isActive?' <span class="badge created" style="font-size:9px">ACTIVE</span>':''}</div>
+            <div class="skill-desc">${esc(s.description||'No description')} &middot; flow: ${esc(linkedFlow)} &middot; ${s.files?.length||0} files &middot; ${(s.instructions||'').length} chars</div>
+          </div>
+          <div class="flow-actions">
+            <button class="icon-btn" data-actskill="${s.id}" title="${isActive?'Deactivate':'Activate'}">${icon(isActive?'check':'zap',15)}</button>
+            <button class="icon-btn" data-editskill="${s.id}" title="Edit">${icon('code',15)}</button>
+            <button class="icon-btn" data-delskill="${s.id}" title="Delete">${icon('trash',15)}</button>
+          </div>
+        </div>`;
+      }).join(''):`<div class="insp-empty"><span class="icon-wrap">${icon('file',22)}</span><br>No skills yet.<br>Create one to add step-by-step instructions.</div>`);
+    $('#newSkillBtn').onclick=()=>{const s={id:'s-'+uid().slice(-8),name:'New skill',description:'A helpful skill',instructions:'# Steps\n\n1. ...',flowId:'',files:[],createdAt:Date.now(),updatedAt:Date.now()};skills[s.id]=s;saveSkills();renderSettings();toast('Skill created');};
   } else {
     const provModels=[...new Set(Object.values(PROVIDERS).flatMap(p=>p.models))];
     const testable=Object.entries(PROVIDERS).filter(([k,v])=>v.models.length);
@@ -1270,6 +1391,9 @@ function renderSettings(){
       <input data-chatcfg="corsProxy" placeholder="https://corsproxy.io/?url=  or  https://your-proxy.com/"
         style="font:12.5px 'JetBrains Mono'" value="${esc(chatApi.corsProxy||'')}"></div>
       <span class="hint"><strong>Option 1 (recommended):</strong> Run <code style="font-family:\'JetBrains Mono\'">python server.py</code> in this folder, then open <code style="font-family:\'JetBrains Mono\'">http://localhost:5001</code>. The app auto-detects the proxy and everything works with streaming. Two formats work: <code style="font-family:'JetBrains Mono'">https://corsproxy.io/?url=</code> (query-param style — the target URL is auto-encoded) or <code style="font-family:'JetBrains Mono'">https://your-proxy.com/</code> (path style — the full target URL is appended). Streaming is auto-disabled when a proxy is set. OpenRouter and Ollama work without a proxy.</span></div>
+    <div class="field" id="webSearchField" style="display:none"><label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2)">
+      <input type="checkbox" data-chatcfg="webSearch" ${chatApi.webSearch?'checked':''} style="width:auto">
+      Enable web search <span style="font-size:11px;color:var(--ink-3);font-weight:400">(B.AI GLM models — searches the web for real-time info)</span></label></div>
     <div class="btn-row" style="margin-bottom:16px">
       <span class="hint" style="flex:1">Keys live only in this browser's localStorage and are sent only to the endpoint above. Ollama needs <code style="font-family:'JetBrains Mono'">OLLAMA_ORIGINS=*</code>.</span>
       <button class="danger-btn" id="clearApi">Clear & return to demo</button></div>
@@ -1287,6 +1411,9 @@ function renderSettings(){
     <div class="api-note"><strong>Current chat mode:</strong> ${esc(chatMode().label)}. Workflow Agent and Media nodes keep their <em>own separate</em> endpoint/key/model — edit those per node in the flow inspector. ${chatApi.corsProxy?'<br><strong>CORS proxy:</strong> active — all calls route through '+esc(chatApi.corsProxy):'<br><strong>CORS proxy:</strong> off — NVIDIA NIM, OpenCode Zen &amp; OpenAI will fail from browser. Set a proxy URL above.'}</div>
     <div class="field"><label>Universal media nodes</label>
       <div class="hint">The <strong>API / Media</strong> node calls any endpoint: text, image, audio, video. Placeholders: <code style="font-family:'JetBrains Mono'">{{input_raw}}</code>, <code style="font-family:'JetBrains Mono'">{{image}}</code>, <code style="font-family:'JetBrains Mono'">{{audio}}</code>, <code style="font-family:'JetBrains Mono'">{{video}}</code>, <code style="font-family:'JetBrains Mono'">{{model}}</code>.</div></div>`;
+    /* Show/hide web search toggle for B.AI */
+    const wsField=$('#webSearchField');
+    if(wsField)wsField.style.display=(chatApi.provider==='bai')?'':'none';
     body.querySelectorAll('[data-chatcfg]').forEach(inp=>{
       inp.addEventListener('change',()=>{
         const k=inp.dataset.chatcfg, v=inp.value;
@@ -1301,15 +1428,19 @@ function renderSettings(){
               toast('Routing '+PROVIDERS[v].label+' through server.py');
             }
           }
-          if(!v)chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:chatApi.corsProxy};
+          if(!v)chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:chatApi.corsProxy,webSearch:false};
           saveChatApi();renderSettings();renderModePill();return;
         }
+        if(k==='webSearch'){chatApi.webSearch=inp.checked;saveChatApi();return;}
         chatApi[k]=v;saveChatApi();renderModePill();
+        /* Toggle web search field visibility on provider change */
+        if(k==='provider'){const ws=$('#webSearchField');if(ws)ws.style.display=(v==='bai')?'':'none';}
       });
     });
     $('#clearApi').onclick=()=>{
-      chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:''};
+      chatApi={provider:'',endpoint:'',key:'',model:'',corsProxy:'',webSearch:false};
       saveChatApi();renderSettings();renderModePill();toast('Back to scripted demo');
+      const wsF=$('#webSearchField');if(wsF)wsF.style.display='none';
     };
     const renderTestRow=(model,r)=>{
       const d=document.createElement('div');
@@ -1357,6 +1488,72 @@ function renderSettings(){
     flows[copy.id]=copy;saveFlows();renderSettings();toast('Duplicated');return;}
   const op=e.target.closest('[data-openflow]');
   if(op)openFlowEditor(op.dataset.openflow);
+  /* Skill handlers */
+  const actS=e.target.closest('[data-actskill]');
+  if(actS){e.stopPropagation();const sid=actS.dataset.actskill;
+    if(state.activeSkillId===sid){state.activeSkillId=null;toast('Skill deactivated');}
+    else{state.activeSkillId=sid;const s=skills[sid];toast('Skill activated: '+s.name);
+      if(s.flowId&&flows[s.flowId]){state.activeFlowId=s.flowId;saveChatFlow();renderFlowSelector();renderModePill();}
+    }
+    saveSkills();renderSettings();return;
+  }
+  const editS=e.target.closest('[data-editskill]');
+  if(editS){e.stopPropagation();openSkillEditor(editS.dataset.editskill);return;}
+  const delS=e.target.closest('[data-delskill]');
+  if(delS){e.stopPropagation();const sid=delS.dataset.delskill;
+    if(state.activeSkillId===sid)state.activeSkillId=null;
+    delete skills[sid];saveSkills();renderSettings();toast('Skill deleted');return;
+  }
+});
+
+/* ----- skill editor ----- */
+let editingSkillId=null;
+function openSkillEditor(id){
+  const s=skills[id];if(!s)return;
+  editingSkillId=id;
+  closeSettings();
+  const m=$('#skillEditor');
+  m.classList.remove('hidden');
+  $('#skillEdName').value=s.name;
+  $('#skillEdDesc').value=s.description||'';
+  $('#skillEdInstructions').value=s.instructions||'';
+  /* Populate flow dropdown */
+  const sel=$('#skillEdFlow');
+  sel.innerHTML='<option value="">None</option>'+Object.values(flows).map(f=>`<option value="${f.id}" ${s.flowId===f.id?'selected':''}>${esc(f.name)}</option>`).join('');
+  /* Show files */
+  const fl=$('#skillEdFiles');
+  fl.innerHTML=(s.files||[]).map((f,i)=>`<div class="skill-file-row"><span class="skill-file-ico">${icon('file',14)}</span><span class="skill-file-name">${esc(f.name)}</span><button class="icon-btn" data-rmfile="${i}" title="Remove">${icon('trash',13)}</button></div>`).join('')||'<div style="font-size:12px;color:var(--ink-3);padding:8px 0">No reference files attached</div>';
+}
+function closeSkillEditor(){
+  if(editingSkillId){
+    const s=skills[editingSkillId];
+    if(s){s.name=$('#skillEdName').value||'Untitled';s.description=$('#skillEdDesc').value;s.instructions=$('#skillEdInstructions').value;s.flowId=$('#skillEdFlow').value;s.updatedAt=Date.now();saveSkills();}
+  }
+  editingSkillId=null;
+  $('#skillEditor').classList.add('hidden');
+  openSettings();
+}
+/* Save on input */
+function saveSkillEd(){if(!editingSkillId)return;const s=skills[editingSkillId];if(!s)return;s.name=$('#skillEdName').value;s.description=$('#skillEdDesc').value;s.instructions=$('#skillEdInstructions').value;s.flowId=$('#skillEdFlow').value;}
+
+/* Skill editor events */
+$('#skillEdClose').onclick=closeSkillEditor;
+['skillEdName','skillEdDesc','skillEdInstructions','skillEdFlow'].forEach(id=>{
+  $('#'+id)?.addEventListener('input',saveSkillEd);
+});
+$('#skillAddFile')?.addEventListener('click',()=>{
+  if(!editingSkillId)return;const s=skills[editingSkillId];if(!s)return;
+  s.files=s.files||[];
+  const arts=Object.values(state.artifacts).filter(a=>['js','html','css','json','md','txt','python'].includes(a.lang));
+  if(!arts.length){toast('No code/text artifacts to attach');return;}
+  /* Simple: attach the most recent artifact */
+  const a=arts[0];s.files.push({name:a.name,artifactId:a.id});saveSkills();
+  openSkillEditor(editingSkillId);toast('Attached: '+a.name);
+});
+$('#skillEdFiles')?.addEventListener('click',e=>{
+  const rm=e.target.closest('[data-rmfile]');if(!rm||!editingSkillId)return;
+  const s=skills[editingSkillId];if(!s)return;const idx=parseInt(rm.dataset.rmfile);
+  s.files.splice(idx,1);saveSkills();openSkillEditor(editingSkillId);
 });
 
 /* ----- flow editor ----- */
@@ -1376,7 +1573,7 @@ function openFlowEditor(id){
 }
 function closeFlowEditor(){
   $('#flowEditor').classList.add('hidden');flowState.flowId=null;
-  moTab='workflows';renderSettings();renderFlowSelector();
+  moTab='workflows';renderSettings();renderFlowSelector();renderSkillSelector();
 }
  $('#feBack').onclick=closeFlowEditor;
 function updateFeCount(){const f=curFlow();if(f)$('#feCount').textContent=f.nodes.length+' nodes';}
@@ -2021,6 +2218,20 @@ function flowSelLabel(id){
   if(!id)return'Direct chat';
   const f=flows[id];return f?f.name:'Direct chat';
 }
+function renderSkillSelector(){
+  const sel=$('#skillSelSelect');if(!sel)return;
+  const opts=[{id:'',name:'No skill'}];
+  Object.values(skills).sort((a,b)=>b.updatedAt-a.updatedAt).forEach(s=>opts.push({id:s.id,name:s.name}));
+  sel.innerHTML=opts.map(o=>`<option value="${o.id}" ${state.activeSkillId===o.id?'selected':''}>${esc(o.name)}</option>`).join('');
+  const ico=$('#skillSelIco');if(ico)ico.innerHTML=icon('file',14);
+}
+$('#skillSelSelect')?.addEventListener('change',e=>{
+  state.activeSkillId=e.target.value||null;
+  const s=state.activeSkillId?skills[state.activeSkillId]:null;
+  if(s&&s.flowId&&flows[s.flowId]){state.activeFlowId=s.flowId;saveChatFlow();renderFlowSelector();renderModePill();}
+  toast(s?'Skill active: '+s.name:'Skill deactivated');
+  renderSettings();
+});
 function renderFlowSelector(){
   const sel=$('#flowSelSelect');if(!sel)return;
   const opts=[{id:'',name:'Direct chat'}];
@@ -2125,15 +2336,118 @@ function syncScroll(){
 }
 codeTa.addEventListener('scroll',syncScroll);
 codeTa.addEventListener('input',refreshEditor);
+/* ===== Enhanced code editor: auto-indent, bracket matching, find & replace ===== */
+let findState={query:'',matches:[],current:0,replaceMode:false};
+function openFindBar(replace){
+  const bar=$('#findBar');bar.classList.add('open');
+  findState.replaceMode=!!replace;
+  $('#replaceInput').style.display=findState.replaceMode?'':'none';
+  $('#replaceBtn').style.display=findState.replaceMode?'':'none';
+  $('#replaceAllBtn').style.display=findState.replaceMode?'':'none';
+  const fi=$('#findInput');fi.focus();fi.select();doFind();
+}
+function closeFindBar(){
+  $('#findBar').classList.remove('open');
+  findState.matches=[];findState.current=0;
+  $('#findCount').textContent='';
+  codeTa.focus();
+}
+function doFind(){
+  const q=$('#findInput').value;
+  const txt=codeTa.value;
+  findState.query=q;findState.matches=[];findState.current=0;
+  if(q){let idx=0;while((idx=txt.indexOf(q,idx))!==-1){findState.matches.push(idx);idx+=q.length;}}
+  const count=findState.matches.length;
+  $('#findCount').textContent=count?(findState.current+1)+'/'+count:'0';
+  if(count)gotoMatch(0);
+}
+function gotoMatch(n){
+  if(!findState.matches.length)return;
+  findState.current=((n%findState.matches.length)+findState.matches.length)%findState.matches.length;
+  const pos=findState.matches[findState.current];
+  codeTa.focus();codeTa.setSelectionRange(pos,pos+findState.query.length);
+  const linesBefore=codeTa.value.slice(0,pos).split('\n').length;
+  codeTa.scrollTop=Math.max(0,(linesBefore-5)*21.45);
+  $('#findCount').textContent=(findState.current+1)+'/'+findState.matches.length;
+}
+function doReplace(all){
+  const q=$('#findInput').value,r=$('#replaceInput').value;
+  if(!q)return;
+  if(all){codeTa.value=codeTa.value.split(q).join(r);}
+  else{const pos=findState.matches[findState.current];if(pos===undefined)return;
+    codeTa.value=codeTa.value.slice(0,pos)+r+codeTa.value.slice(pos+q.length);}
+  refreshEditor();doFind();
+}
+$('#findInput')?.addEventListener('input',doFind);
+$('#findPrev')?.addEventListener('click',()=>gotoMatch(findState.current-1));
+$('#findNext')?.addEventListener('click',()=>gotoMatch(findState.current+1));
+$('#replaceBtn')?.addEventListener('click',()=>doReplace(false));
+$('#replaceAllBtn')?.addEventListener('click',()=>doReplace(true));
+$('#findClose')?.addEventListener('click',closeFindBar);
+
 codeTa.addEventListener('keydown',e=>{
+  const a=curArt();const lang=a?a.lang:'js';
+  if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();openFindBar(false);return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==='h'){e.preventDefault();openFindBar(true);return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();runArtifact();return;}
+  if(e.key==='Escape'&&$('#findBar').classList.contains('open')){closeFindBar();return;}
+  if(e.key==='F3'){e.preventDefault();gotoMatch(findState.current+(e.shiftKey?-1:1));return;}
   if(e.key==='Tab'){
     e.preventDefault();
     const s=codeTa.selectionStart,en=codeTa.selectionEnd;
-    codeTa.value=codeTa.value.slice(0,s)+'  '+codeTa.value.slice(en);
-    codeTa.selectionStart=codeTa.selectionEnd=s+2;
-    refreshEditor();
+    if(e.shiftKey){
+      const ls=codeTa.value.lastIndexOf('\n',s-1)+1;
+      if(codeTa.value.slice(ls,ls+2)==='  '){
+        codeTa.value=codeTa.value.slice(0,ls)+codeTa.value.slice(ls+2);
+        codeTa.selectionStart=Math.max(ls,s-2);codeTa.selectionEnd=Math.max(ls,en-2);
+      }
+    }else if(s!==en){
+      const ls=codeTa.value.lastIndexOf('\n',s-1)+1;
+      const sel=codeTa.value.slice(ls,en);
+      const ind=sel.split('\n').map(l=>'  '+l).join('\n');
+      codeTa.value=codeTa.value.slice(0,ls)+ind+codeTa.value.slice(en);
+      codeTa.selectionStart=ls;codeTa.selectionEnd=ls+ind.length;
+    }else{
+      codeTa.value=codeTa.value.slice(0,s)+'  '+codeTa.value.slice(en);
+      codeTa.selectionStart=codeTa.selectionEnd=s+2;
+    }
+    refreshEditor();return;
   }
-  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();runArtifact();}
+  if(e.key==='Enter'){
+    const s=codeTa.selectionStart;
+    const ls=codeTa.value.lastIndexOf('\n',s-1)+1;
+    const pl=codeTa.value.slice(ls,s);
+    const indent=pl.match(/^\s*/)[0];
+    const extra=pl.trim().endsWith(':')||pl.trim().endsWith('{')||pl.trim().endsWith('(');
+    e.preventDefault();
+    const ins='\n'+indent+(extra?'  ':'');
+    codeTa.value=codeTa.value.slice(0,s)+ins+codeTa.value.slice(s);
+    codeTa.selectionStart=codeTa.selectionEnd=s+ins.length;
+    refreshEditor();return;
+  }
+  const ac={'(':')','[':']','{':'}','"':'"',"'":"'",'`':'`'};
+  const pairs={')':'(',']':'[','}':'{'};
+  if(ac[e.key]){
+    const s=codeTa.selectionStart,en=codeTa.selectionEnd;
+    if((e.key==='"'||e.key==="'"||e.key==='`')&&s<codeTa.value.length&&/[a-zA-Z0-9_]/.test(codeTa.value[s]))return;
+    e.preventDefault();
+    const cl=ac[e.key];
+    if(s===en){codeTa.value=codeTa.value.slice(0,s)+e.key+cl+codeTa.value.slice(s);codeTa.selectionStart=codeTa.selectionEnd=s+1;}
+    else{const sel=codeTa.value.slice(s,en);codeTa.value=codeTa.value.slice(0,s)+e.key+sel+cl+codeTa.value.slice(en);codeTa.selectionStart=s+1;codeTa.selectionEnd=en+1;}
+    refreshEditor();return;
+  }
+  if(pairs[e.key]&&codeTa.value[codeTa.selectionStart]===e.key){e.preventDefault();codeTa.selectionStart=codeTa.selectionEnd=codeTa.selectionStart+1;return;}
+  if(e.key==='Backspace'){
+    const s=codeTa.selectionStart;
+    if(s>0&&s===codeTa.selectionStart){
+      const p=codeTa.value[s-1],n=codeTa.value[s];
+      if((p==='('&&n===')')||(p==='['&&n===']')||(p==='{'&&n==='}')||(p==='"'&&n==='"')||(p==="'"&&n==="'")||(p==='`'&&n==='`')){
+        e.preventDefault();
+        codeTa.value=codeTa.value.slice(0,s-1)+codeTa.value.slice(s+1);
+        codeTa.selectionStart=codeTa.selectionEnd=s-1;refreshEditor();return;
+      }
+    }
+  }
 });
 function openArtifact(id){
   const a=state.artifacts[id];if(!a)return;
@@ -2465,11 +2779,12 @@ if(!load()){const s=buildSeed();state.chats=s.chats;state.artifacts=s.artifacts;
 loadFlows();
 loadChatApi();
 loadChatFlow();
+loadSkills();
 detectLocalProxy();
 state.activeChatId=[...state.chats].sort((a,b)=>b.updatedAt-a.updatedAt)[0]?.id||null;
 if(!state.activeChatId)newChat(false);
 if(innerWidth>1120)app.classList.remove('sb-hidden');
-renderSidebar();renderThread();renderArtifacts();updateSend();renderModePill();renderFlowSelector();
+renderSidebar();renderThread();renderArtifacts();updateSend();renderModePill();renderFlowSelector();renderSkillSelector();
 input.focus();
 </script>
 </body>
